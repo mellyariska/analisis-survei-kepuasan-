@@ -119,49 +119,17 @@ st.success(f"🔑 **Faktor dominan:** {faktor_dominan}")
 
 st.divider()
 
-# ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING)
-# ==========================================================
-st.header("6️⃣ Segmentasi Kepuasan Pegawai")
-
+# ============================
+# CLUSTERING (FIXED VERSION)
+# ============================
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(indikator)
 
 kmeans = KMeans(n_clusters=3, random_state=42)
 df["Cluster"] = kmeans.fit_predict(X_scaled)
 
-cluster_mean = df.groupby("Cluster").mean()
-cluster_mean = cluster_mean.sort_values(by=cluster_mean.columns[-1], ascending=False)
+cluster_mean = df.groupby("Cluster")[indikator.columns].mean()
 
-label = {
-    cluster_mean.index[0]: "Sangat Puas",
-    cluster_mean.index[1]: "Cukup Puas",
-    cluster_mean.index[2]: "Tidak Puas"
-}
-
-cluster_mean["Segment"] = cluster_mean.index.map(label)
-
-# Radar Chart
-labels = indikator.columns
-angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-angles += angles[:1]
-
-fig_rad = plt.figure(figsize=(6,6))
-ax_rad = plt.subplot(polar=True)
-
-colors = ["#2ecc71", "#f1c40f", "#e74c3c"]
-
-for i, row in cluster_mean.iterrows():
-    values = row[labels].values.tolist()
-    values += values[:1]
-    ax_rad.plot(angles, values, label=row["Segment"], color=colors.pop(0))
-    ax_rad.fill(angles, values, alpha=0.25)
-
-ax_rad.set_thetagrids(np.degrees(angles[:-1]), labels)
-ax_rad.set_ylim(0,5)
-ax_rad.set_title("Radar Chart Segmentasi Kepuasan")
-ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3,1.1))
-
-st.pyplot(fig_rad)
-
-st.success("📌 **Terdapat kelompok pegawai yang perlu menjadi prioritas intervensi layanan**")
+cluster_mean = cluster_mean.sort_values(
+    by=cluster_mean.columns[-1], ascending=False
+)
