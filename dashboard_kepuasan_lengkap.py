@@ -129,21 +129,28 @@ st.success(f"🔑 **Faktor dominan:** {faktor_dominan}")
 st.divider()
 
 # ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) – AMAN TOTAL
+# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) – FIX FINAL
 # ==========================================================
 st.header("6️⃣ Segmentasi Kepuasan Pegawai")
 
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(indikator.fillna(indikator.mean()))
+X_scaled = scaler.fit_transform(
+    indikator.fillna(indikator.mean())
+)
 
 kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
 df["Cluster"] = kmeans.fit_predict(X_scaled)
 
-# 🚨 INI BARIS KRITIS YANG SUDAH DIPERBAIKI
+# 🔥 FIX PALING AMAN UNTUK PANDAS 2.x
 cluster_mean = (
-    df.groupby("Cluster")[indikator.columns]
-    .mean()
-    .sort_values(by=indikator.columns[-1], ascending=False)
+    df.groupby("Cluster", as_index=True)
+      .mean(numeric_only=True)
+)
+
+# Urutkan berdasarkan kepuasan keseluruhan (V5)
+cluster_mean = cluster_mean.sort_values(
+    by=indikator.columns[-1],
+    ascending=False
 )
 
 segment_map = {
@@ -151,6 +158,7 @@ segment_map = {
     cluster_mean.index[1]: "Cukup Puas",
     cluster_mean.index[2]: "Tidak Puas"
 }
+
 cluster_mean["Segment"] = cluster_mean.index.map(segment_map)
 
 # ---------------- Radar Chart ----------------
@@ -163,10 +171,10 @@ ax_rad = plt.subplot(polar=True)
 
 colors = ["#2ecc71", "#f1c40f", "#e74c3c"]
 
-for idx, row in cluster_mean.iterrows():
+for i, row in cluster_mean.iterrows():
     values = row[labels].tolist()
     values += values[:1]
-    ax_rad.plot(angles, values, label=row["Segment"], color=colors.pop(0))
+    ax_rad.plot(angles, values, label=row["Segment"], color=colors[i])
     ax_rad.fill(angles, values, alpha=0.25)
 
 ax_rad.set_thetagrids(np.degrees(angles[:-1]), labels)
@@ -176,4 +184,4 @@ ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
 st.pyplot(fig_rad)
 
-st.success("📌 **Segmentasi berhasil – dasar kuat untuk rekomendasi kebijakan layanan**")
+st.success("📌 Segmentasi berhasil – dasar kuat rekomendasi kebijakan")
