@@ -134,7 +134,7 @@ st.success(f"🔑 **Faktor dominan:** {faktor_dominan}")
 st.divider()
 
 # ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) - FIXED
+# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) - FIX AMAN
 # ==========================================================
 st.header("6️⃣ Segmentasi Kepuasan Pegawai")
 
@@ -144,11 +144,11 @@ X_scaled = scaler.fit_transform(indikator)
 kmeans = KMeans(n_clusters=3, random_state=42)
 df["Cluster"] = kmeans.fit_predict(X_scaled)
 
-# ✅ FIX UTAMA (HANYA KOLOM NUMERIK)
+# 🔥 FIX UTAMA ADA DI SINI
 cluster_mean = df.groupby("Cluster")[indikator.columns].mean()
 
 cluster_mean = cluster_mean.sort_values(
-    by=cluster_mean.columns[-1],
+    by=indikator.columns[-1],
     ascending=False
 )
 
@@ -159,6 +159,7 @@ label = {
 }
 
 cluster_mean["Segment"] = cluster_mean.index.map(label)
+
 
 # ---------------- Radar Chart ----------------
 labels = indikator.columns
@@ -184,3 +185,4 @@ ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 st.pyplot(fig_rad)
 
 st.success("📌 **Terdapat kelompok pegawai yang perlu menjadi prioritas intervensi layanan**")
+
