@@ -14,12 +14,12 @@ st.title("📊 Dashboard Mini Kepuasan Layanan Kepegawaian")
 st.markdown("Analisis berbasis data untuk mendukung rekomendasi kebijakan")
 
 # ==========================================================
-# LOAD DATA
+# LOAD DATA (PASTI NUMERIK)
 # ==========================================================
 df = pd.read_excel("Data_Survei_Kepuasan_Layanan_Kepegawaian.xlsx")
 
-# Ambil hanya kolom indikator (V1–V5)
-indikator = df.iloc[:, 1:6]
+# Ambil kolom indikator V1–V5 dan PAKSA numerik
+indikator = df.iloc[:, 1:6].apply(pd.to_numeric, errors="coerce")
 
 # ==========================================================
 # KPI KEPUASAN (IKM)
@@ -90,12 +90,7 @@ for i in range(len(corr)):
 ax_corr.set_title("Heatmap Korelasi Pearson")
 st.pyplot(fig_corr)
 
-corr_v5 = (
-    corr["Kepuasan Keseluruhan (V5)"]
-    .drop("Kepuasan Keseluruhan (V5)")
-    .sort_values(ascending=False)
-)
-
+corr_v5 = corr[indikator.columns[-1]].drop(indikator.columns[-1]).sort_values(ascending=False)
 st.subheader("📊 Ranking Faktor Berpengaruh terhadap Kepuasan")
 st.dataframe(corr_v5.to_frame("Koefisien Korelasi"))
 
@@ -109,7 +104,7 @@ st.header("5️⃣ Analisis Regresi Linear Berganda")
 X = sm.add_constant(indikator.iloc[:, 0:4])  # V1–V4
 y = indikator.iloc[:, 4]                     # V5
 
-model = sm.OLS(y, X).fit()
+model = sm.OLS(y, X, missing="drop").fit()
 
 coef = model.params[1:]
 r2 = model.rsquared
@@ -134,35 +129,32 @@ st.success(f"🔑 **Faktor dominan:** {faktor_dominan}")
 st.divider()
 
 # ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) - FIX AMAN
+# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) – AMAN TOTAL
 # ==========================================================
 st.header("6️⃣ Segmentasi Kepuasan Pegawai")
 
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(indikator)
+X_scaled = scaler.fit_transform(indikator.fillna(indikator.mean()))
 
-kmeans = KMeans(n_clusters=3, random_state=42)
+kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
 df["Cluster"] = kmeans.fit_predict(X_scaled)
 
-# 🔥 FIX UTAMA ADA DI SINI
-cluster_mean = df.groupby("Cluster")[indikator.columns].mean()
-
-cluster_mean = cluster_mean.sort_values(
-    by=indikator.columns[-1],
-    ascending=False
+# 🚨 INI BARIS KRITIS YANG SUDAH DIPERBAIKI
+cluster_mean = (
+    df.groupby("Cluster")[indikator.columns]
+    .mean()
+    .sort_values(by=indikator.columns[-1], ascending=False)
 )
 
-label = {
+segment_map = {
     cluster_mean.index[0]: "Sangat Puas",
     cluster_mean.index[1]: "Cukup Puas",
     cluster_mean.index[2]: "Tidak Puas"
 }
-
-cluster_mean["Segment"] = cluster_mean.index.map(label)
-
+cluster_mean["Segment"] = cluster_mean.index.map(segment_map)
 
 # ---------------- Radar Chart ----------------
-labels = indikator.columns
+labels = indikator.columns.tolist()
 angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
 angles += angles[:1]
 
@@ -171,11 +163,11 @@ ax_rad = plt.subplot(polar=True)
 
 colors = ["#2ecc71", "#f1c40f", "#e74c3c"]
 
-for i, row in cluster_mean.iterrows():
-    values = row[labels].values.tolist()
+for idx, row in cluster_mean.iterrows():
+    values = row[labels].tolist()
     values += values[:1]
-    ax_rad.plot(angles, values, label=row["Segment"], color=colors[i])
-    ax_rad.fill(angles, values, alpha=0.25, color=colors[i])
+    ax_rad.plot(angles, values, label=row["Segment"], color=colors.pop(0))
+    ax_rad.fill(angles, values, alpha=0.25)
 
 ax_rad.set_thetagrids(np.degrees(angles[:-1]), labels)
 ax_rad.set_ylim(0, 5)
@@ -184,5 +176,4 @@ ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
 st.pyplot(fig_rad)
 
-st.success("📌 **Terdapat kelompok pegawai yang perlu menjadi prioritas intervensi layanan**")
-
+st.success("📌 **Segmentasi berhasil – dasar kuat untuk rekomendasi kebijakan layanan**")
