@@ -17,7 +17,9 @@ st.markdown("Analisis berbasis data untuk mendukung rekomendasi kebijakan")
 # LOAD DATA
 # ==========================================================
 df = pd.read_excel("Data_Survei_Kepuasan_Layanan_Kepegawaian.xlsx")
-indikator = df.iloc[:, 1:]
+
+# Ambil hanya kolom indikator (V1–V5)
+indikator = df.iloc[:, 1:6]
 
 # ==========================================================
 # KPI KEPUASAN (IKM)
@@ -47,7 +49,11 @@ gap_scores = 5 - mean_scores
 prioritas_gap = gap_scores.idxmax()
 
 fig_gap, ax_gap = plt.subplots(figsize=(6,4))
-ax_gap.bar(gap_scores.index, gap_scores.values, color=plt.cm.Set2(range(len(gap_scores))))
+ax_gap.bar(
+    gap_scores.index,
+    gap_scores.values,
+    color=plt.cm.Set2(range(len(gap_scores)))
+)
 ax_gap.set_ylabel("Nilai GAP")
 ax_gap.set_title("GAP Kepuasan per Indikator")
 ax_gap.grid(axis="y", linestyle="--", alpha=0.6)
@@ -78,12 +84,18 @@ ax_corr.set_yticklabels(corr.columns)
 
 for i in range(len(corr)):
     for j in range(len(corr)):
-        ax_corr.text(j, i, f"{corr.iloc[i,j]:.2f}", ha="center", va="center")
+        ax_corr.text(j, i, f"{corr.iloc[i, j]:.2f}",
+                     ha="center", va="center", fontsize=9)
 
 ax_corr.set_title("Heatmap Korelasi Pearson")
 st.pyplot(fig_corr)
 
-corr_v5 = corr["Kepuasan Keseluruhan (V5)"].drop("Kepuasan Keseluruhan (V5)").sort_values(ascending=False)
+corr_v5 = (
+    corr["Kepuasan Keseluruhan (V5)"]
+    .drop("Kepuasan Keseluruhan (V5)")
+    .sort_values(ascending=False)
+)
+
 st.subheader("📊 Ranking Faktor Berpengaruh terhadap Kepuasan")
 st.dataframe(corr_v5.to_frame("Koefisien Korelasi"))
 
@@ -94,8 +106,9 @@ st.divider()
 # ==========================================================
 st.header("5️⃣ Analisis Regresi Linear Berganda")
 
-X = sm.add_constant(df.iloc[:, 1:5])
-y = df.iloc[:, 5]
+X = sm.add_constant(indikator.iloc[:, 0:4])  # V1–V4
+y = indikator.iloc[:, 4]                     # V5
+
 model = sm.OLS(y, X).fit()
 
 coef = model.params[1:]
@@ -109,7 +122,8 @@ ax_reg.set_title("Pengaruh Indikator terhadap Kepuasan")
 
 for bar in bars:
     h = bar.get_height()
-    ax_reg.text(bar.get_x()+bar.get_width()/2, h+0.02, f"{h:.2f}", ha="center")
+    ax_reg.text(bar.get_x() + bar.get_width()/2,
+                h + 0.02, f"{h:.2f}", ha="center")
 
 st.pyplot(fig_reg)
 st.info(f"📈 **Nilai R²:** {r2:.2f}")
@@ -120,7 +134,7 @@ st.success(f"🔑 **Faktor dominan:** {faktor_dominan}")
 st.divider()
 
 # ==========================================================
-# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING)
+# 6️⃣ SEGMENTASI KEPUASAN (CLUSTERING) - FIXED
 # ==========================================================
 st.header("6️⃣ Segmentasi Kepuasan Pegawai")
 
@@ -130,8 +144,13 @@ X_scaled = scaler.fit_transform(indikator)
 kmeans = KMeans(n_clusters=3, random_state=42)
 df["Cluster"] = kmeans.fit_predict(X_scaled)
 
-cluster_mean = df.groupby("Cluster").mean()
-cluster_mean = cluster_mean.sort_values(by=cluster_mean.columns[-1], ascending=False)
+# ✅ FIX UTAMA (HANYA KOLOM NUMERIK)
+cluster_mean = df.groupby("Cluster")[indikator.columns].mean()
+
+cluster_mean = cluster_mean.sort_values(
+    by=cluster_mean.columns[-1],
+    ascending=False
+)
 
 label = {
     cluster_mean.index[0]: "Sangat Puas",
@@ -141,7 +160,7 @@ label = {
 
 cluster_mean["Segment"] = cluster_mean.index.map(label)
 
-# Radar Chart
+# ---------------- Radar Chart ----------------
 labels = indikator.columns
 angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
 angles += angles[:1]
@@ -154,13 +173,13 @@ colors = ["#2ecc71", "#f1c40f", "#e74c3c"]
 for i, row in cluster_mean.iterrows():
     values = row[labels].values.tolist()
     values += values[:1]
-    ax_rad.plot(angles, values, label=row["Segment"], color=colors.pop(0))
-    ax_rad.fill(angles, values, alpha=0.25)
+    ax_rad.plot(angles, values, label=row["Segment"], color=colors[i])
+    ax_rad.fill(angles, values, alpha=0.25, color=colors[i])
 
 ax_rad.set_thetagrids(np.degrees(angles[:-1]), labels)
-ax_rad.set_ylim(0,5)
+ax_rad.set_ylim(0, 5)
 ax_rad.set_title("Radar Chart Segmentasi Kepuasan")
-ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3,1.1))
+ax_rad.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
 st.pyplot(fig_rad)
 
